@@ -18,8 +18,11 @@
 
 - **New async client (test version)**
   - [info-about-server/test-async-tesseract/tesseract_async_client.py](cci:7://file:///Users/aktilekishanov/Documents/career/forte/ds/main-from-server-slim/main/info-about-server/test-async-tesseract/tesseract_async_client.py:0:0-0:0):
-    - Endpoints: `POST {base_url}/pdf` (multipart `file`) and `GET {base_url}/result/{id}`; default base `https://dev-ocr.fortebank.com/v2`.
-    - Async workflow: upload -> poll until ready -> returns JSON with `status/result`.
+    - Endpoints: `POST {base_url}/pdf` (multipart field `file`) and `GET {base_url}/result/{id}`; default base `https://dev-ocr.fortebank.com/v2`.
+    - Actual responses (from examples):
+      - POST: `{ "id": "...", "filename": "...", "status": "uploaded", "created_at": "...", "message": "..." }`
+      - GET: `{ "id": "...", "filename": "...", "status": "completed", "result": { "data": { "text": "..." } } }`
+    - Workflow: upload -> poll GET until `status` indicates completion and `result` is populated.
   - Your added client [rbidp/clients/tesseract_async_client.py](cci:7://file:///Users/aktilekishanov/Documents/career/forte/ds/main-from-server-slim/main/rb-ocr/rbidp/clients/tesseract_async_client.py:0:0-0:0) mirrors these methods:
     - [upload(file_path)](cci:1://file:///Users/aktilekishanov/Documents/career/forte/ds/main-from-server-slim/main/rb-ocr/rbidp/clients/tesseract_async_client.py:23:4-32:26), [get_result(file_id)](cci:1://file:///Users/aktilekishanov/Documents/career/forte/ds/main-from-server-slim/main/rb-ocr/rbidp/clients/tesseract_async_client.py:34:4-40:26), [wait_for_result(file_id, ...)](cci:1://file:///Users/aktilekishanov/Documents/career/forte/ds/main-from-server-slim/main/rb-ocr/rbidp/clients/tesseract_async_client.py:42:4-57:46).
 
@@ -71,14 +74,16 @@
     - Reads env/config, returns the appropriate adapter instance with settings.
 
 - **Return shape compatibility**
-  - The async endpoint likely returns something like:
-    - Upload: `{ id: "..." }`
-    - Poll: `{ status: "...", result: {...} }` (or similar)
-  - Adapter must map to:
-    - `success = (status in {"done","completed","success","finished","ready"} and result present)` or direct `result.success`.
-    - `raw_obj = result` (the full OCR JSON needed by `filter_textract_response`).
-    - `error = None` when success, otherwise best-effort message (e.g., from `status` or an `error` field).
-    - `raw_path` optional: write the JSON to `output_dir/TEXTRACT_RAW` for parity, or set to `None` if you do not persist.
+  - The async endpoint returns (per current examples):
+    - POST: `{ id, filename, status: "uploaded", created_at, message }`
+    - GET: `{ id, filename, status: "completed", result: { data: { text: "..." } } }`
+  - Adapter must normalize to the orchestrator’s expected shape:
+    - Prefer `result.data.pages` if provided by the service.
+    - Else if only `result.data.text` is present, wrap into a single page:
+      - `raw_obj = { "data": { "pages": [ { "page_number": 1, "text": data.text or "" } ] } }`
+    - `success = (status in {"completed","done","success","finished","ready"}) and (pages exist or text present)`; fallback to `bool(result)` if status vocabulary changes.
+    - `error = None` on success; otherwise use best-effort from `message`/`error` fields.
+    - `raw_path` optional: you may persist normalized JSON to `output_dir/TEXTRACT_RAW` for debugging.
     - `converted_pdf` from the shared preprocessor.
 
 - **Timing and metrics**
