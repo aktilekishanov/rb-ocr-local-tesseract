@@ -1,0 +1,59 @@
+# Short answer
+Yes—that’s exactly the hybrid pattern I recommend: store all files/blobs in MinIO, and keep all structured metadata and indexes in PostgreSQL. It’s scalable, cost-efficient, and query-friendly.
+
+# What goes where
+
+- **MinIO (files only)**
+  - Input PDF/image.
+  - OCR artifacts: textract raw JSON, filtered pages.
+  - GPT artifacts: raw, filtered, merged, validation JSONs.
+  - Optional: manifest.json for human inspection.
+
+- **PostgreSQL (everything else)**
+  - Run records, statuses, timestamps, user input.
+  - File index: one row per artifact with MinIO key, size, content_type, checksum.
+  - Step tracking (start/finish, durations, errors).
+  - Validation results (booleans) and denormalized extractor fields (fio, doc_type, doc_date) for fast querying.
+  - Optional: prompts/model params as JSONB for reproducibility.
+
+# Key design details
+
+- **S3 key strategy**
+  - runs/{YYYY-MM-DD}/{run_id}/
+    - input/original/{filename}
+    - ocr/{TEXTRACT_RAW, TEXTRACT_PAGES}
+    - gpt/{…raw.json, …filtered.json, merged.json, validation.json}
+    - meta/{metadata.json, manifest.json}
+
+- **DB schema essentials**
+  - runs(id, created_at, fio, doc_type, reason, status, error_message)
+  - files(id, run_id, kind, storage_key, content_type, size_bytes, checksum_sha256, created_at)
+  - steps(id, run_id, name, status, started_at, finished_at, error_message)
+  - validation_results(run_id, fio_match, doc_type_match, doc_date_valid, single_doc_type_valid, verdict, storage_key, created_at)
+  - extractor_outputs(run_id, fio, doc_type, doc_date)
+
+- **Consistency and transactions**
+  - Write file to MinIO, compute checksum; then insert `files` row referencing the key and checksum in a DB transaction.
+  - For each step: write artifact → insert file row → insert/update step row → update run status on terminal steps.
+  - On failure: record error in step and run; leave partial files—they’re immutable and traceable.
+
+- **Access pattern**
+  - UI/API queries Postgres to list runs and their statuses; uses MinIO keys to fetch/download artifacts (via presigned URLs).
+  - Avoid storing large JSON in DB; store only critical fields as columns/JSONB for querying.
+
+- **Security and governance**
+  - Encrypt MinIO bucket; use presigned URLs with short TTL for downloads.
+  - Restrict PII columns in Postgres via roles.
+  - Lifecycle: set MinIO retention policies per artifact type (e.g., keep raw GPT shorter).
+
+- **Migrations**
+  - Introduce a storage abstraction (put/get) and dual-write (local + MinIO) behind a flag during migration.
+  - Backfill: iterate local runs/, upload to MinIO, insert DB rows based on manifest.
+
+# Pros and trade-offs
+
+- Pros: scalable, cheap blob storage, powerful SQL queries, clear lineage, simpler backups.
+- Trade-offs: you need a small consistency protocol (write file → write DB row) and background cleanup for failed runs.
+
+# Next steps
+- I can draft DDLs for Postgres tables and a small Python storage interface (MinIO client + Postgres repository), then integrate dual-writing in your current pipeline without changing behavior.

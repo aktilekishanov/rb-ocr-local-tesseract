@@ -1,0 +1,22 @@
+{
+  "run_id": "20251105_164121_67aba",
+  "created_at": "05.11.2025",
+  "user_input": {
+    "fio": "Ибраева Альбина",
+    "reason": "Уход заемщика в декретный отпуск",
+    "doc_type": "Приказ о выходе в декретный отпуск по уходу за ребенком"
+  },
+  "file": {
+    "original_filename": "1. Приказ о выходе в декретный отпуск.pdf",
+    "saved_path": "/home/rb_admin2/main/rb-ocr/runs/2025-11-05/20251105_164121_67aba/input/original/1._Приказ_о_выходе_в_декретный_отпуск.pdf",
+    "content_type": "application/pdf",
+    "size_bytes": 357970
+  },
+  "artifacts": {
+    "final_result_path": "/home/rb_admin2/main/rb-ocr/runs/2025-11-05/20251105_164121_67aba/meta/final_result.json",
+    "side_by_side_path": "/home/rb_admin2/main/rb-ocr/runs/2025-11-05/20251105_164121_67aba/meta/side_by_side.json",
+    "merged_path": "/home/rb_admin2/main/rb-ocr/runs/2025-11-05/20251105_164121_67aba/gpt/merged.json"
+  },
+  "status": "success",
+  "error": null
+}

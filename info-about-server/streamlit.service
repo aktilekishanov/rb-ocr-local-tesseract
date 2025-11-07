@@ -1,0 +1,13 @@
+[Unit]
+Description=Streamlit OCR App
+After=network.target
+ 
+[Service]
+User=rb_admin2
+WorkingDirectory=/home/rb_admin2/main/rb-ocr
+ExecStart=/home/rb_admin2/.venv/streamlit/bin/streamlit run /home/rb_admin2/main/rb-ocr/app.py --server.port 8004 --server.address localhost
+Restart=always
+Environment="PATH=/home/rb_admin2/.venv/streamlit/bin"
+ 
+[Install]
+WantedBy=multi-user.target

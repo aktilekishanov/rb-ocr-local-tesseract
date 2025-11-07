@@ -1,0 +1,75 @@
+server {
+    listen 443 ssl http2;
+    server_name cfo-prod-llm-uv01.fortebank.com www.cfo-prod-llm-uv01.fortebank.com;
+ 
+    ssl_certificate /home/llmadmin/certs/public.pem; # Убедись, что пути верны
+    ssl_certificate_key /home/llmadmin/certs/private.pem;
+ 
+    client_max_body_size 100M; # Лимит загрузки
+ 
+    access_log /var/log/nginx/cfo-prod-llm.access.log;
+    error_log /var/log/nginx/cfo-prod-llm.error.log;
+
+# ПРИЛОЖЕНИЕ RB-OCR STREAMLIT APP (------------------------- ПО ЗАМЕНЕ URL @rb_admin2 -----------------------------)
+    location /rb-ocr/ {
+        proxy_pass              http://127.0.0.1:8004/;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Forwarded-Proto $scheme;
+ 
+        proxy_connect_timeout   60s;
+        proxy_send_timeout      300s;
+        proxy_read_timeout      600s;
+ 
+        proxy_http_version      1.1;
+        proxy_set_header        Upgrade $http_upgrade;
+        proxy_set_header        Connection 'upgrade';
+        proxy_cache_bypass      $http_upgrade;
+ 
+        proxy_buffering         off;
+    }
+
+ 
+# ПРИЛОЖЕНИЕ TRAVEL AGENT AIZERE(--------------------------- ПО ЗАМНЕ URL @tanekan -----------------------------)
+    location /travel-agent/ {
+        proxy_pass http://127.0.0.1:8005/;
+ 
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout   300s;
+        proxy_read_timeout   600s;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+ 
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!(((((((((((По ЗАМЕНЕ ПУТИ kaisar)))))))))))))
+    location / {
+        proxy_pass http://127.0.0.1:8002/;
+ 
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout   300s;
+        proxy_read_timeout   600s;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+}
+ 
+server {
+    listen 80;
+    server_name cfo-prod-llm-uv01.fortebank.com www.cfo-prod-llm-uv01.fortebank.com;
+    return 301 https://$host$request_uri;
+}
