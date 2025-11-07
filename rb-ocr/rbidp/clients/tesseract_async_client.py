@@ -4,6 +4,12 @@ import os
 import httpx
 
 
+import mimetypes
+import json
+
+from rbidp.processors.image_to_pdf_converter import convert_image_to_pdf
+from rbidp.core.config import OCR_RAW
+
 class TesseractAsyncClient:
     def __init__(
         self,
@@ -103,3 +109,91 @@ async def ask_tesseract_async(
             "upload": upload_resp,
             "result": result_obj,
         }
+
+
+def ask_tesseract(
+    pdf_path: str,
+    output_dir: str = "output",
+    save_json: bool = True,
+    *,
+    base_url: str = "https://dev-ocr.fortebank.com/v2",
+    verify: bool = True,
+    poll_interval: float = 2.0,
+    timeout: float = 300.0,
+    client_timeout: float = 60.0,
+) -> Dict[str, Any]:
+    work_path = pdf_path
+    converted_pdf: Optional[str] = None
+    mt, _ = mimetypes.guess_type(pdf_path)
+    is_pdf = bool(mt == "application/pdf" or pdf_path.lower().endswith(".pdf"))
+    ext = os.path.splitext(pdf_path)[1].lower()
+    is_image = bool((mt and isinstance(mt, str) and mt.startswith("image/")) or ext in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".heic", ".heif"})
+    if not is_pdf and is_image:
+        base_dir = os.path.dirname(pdf_path)
+        base_name = os.path.splitext(os.path.basename(pdf_path))[0]
+        desired_path = os.path.join(base_dir, f"{base_name}_converted.pdf")
+        converted_pdf = convert_image_to_pdf(pdf_path, output_path=desired_path)
+        work_path = converted_pdf
+
+    def _run(coro):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            new_loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(new_loop)
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+                asyncio.set_event_loop(None)
+        else:
+            return asyncio.run(coro)
+
+    async_result = _run(
+        ask_tesseract_async(
+            file_path=work_path,
+            base_url=base_url,
+            wait=True,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            client_timeout=client_timeout,
+            verify=verify,
+        )
+    )
+
+    success = bool(async_result.get("success"))
+    error: Optional[str] = None
+    raw_obj: Dict[str, Any] = {}
+
+    get_resp = async_result.get("result")
+    if isinstance(get_resp, dict):
+        inner = get_resp.get("result")
+        if isinstance(inner, dict):
+            raw_obj = inner
+        else:
+            raw_obj = get_resp
+
+    if not success:
+        error = async_result.get("error")
+        if not error and isinstance(get_resp, dict):
+            error = get_resp.get("error_message") or get_resp.get("error")
+
+    raw_path: Optional[str] = None
+    if save_json:
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+            raw_path = os.path.join(output_dir, OCR_RAW)
+            with open(raw_path, "w", encoding="utf-8") as f:
+                json.dump(raw_obj if isinstance(raw_obj, dict) else {}, f, ensure_ascii=False)
+        except Exception:
+            raw_path = None
+
+    return {
+        "success": success,
+        "error": error,
+        "raw_path": raw_path,
+        "raw_obj": raw_obj if isinstance(raw_obj, dict) else {},
+        "converted_pdf": converted_pdf,
+    }

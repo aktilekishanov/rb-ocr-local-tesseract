@@ -1,0 +1,5 @@
+GET response contains:
+Top-level: id, filename, status (e.g., "completed").
+result.data: has text, lines, pages, words, blocks, confidence.
+result.meta: has lang, engine, input_type, page_count, timing_breakdown, timestamps.
+Also flags: result.success, result.error, result.error_message.

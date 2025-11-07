@@ -1,6 +1,6 @@
 from rbidp.core.config import OCR_PAGES
 
-def filter_textract_response(obj: dict, output_dir: str, filename: str = OCR_PAGES) -> str:
+def filter_ocr_response(obj: dict, output_dir: str, filename: str = OCR_PAGES) -> str:
     """
     Build per-page text and save to JSON file {"pages": [{"page_number", "text"}, ...]}.
     Returns the full path to the saved file.
@@ -25,7 +25,7 @@ def filter_textract_response(obj: dict, output_dir: str, filename: str = OCR_PAG
                 })
         if all(isinstance(x.get("page_number"), int) for x in pages):
             pages.sort(key=lambda x: x["page_number"]) 
-    # Else, derive from Textract Blocks
+    # Else, derive from Textract-like Blocks if present
     elif isinstance(obj.get("Blocks"), list):
         from collections import defaultdict
         blocks = obj["Blocks"]

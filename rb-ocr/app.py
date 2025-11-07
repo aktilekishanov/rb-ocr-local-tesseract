@@ -13,7 +13,7 @@ st.set_page_config(page_title="RB Loan Deferment IDP", layout="centered")
 
 st.write("")
 st.title("RB Loan Deferment IDP")
-st.write("Загрузите один файл для распознавания (локальная обработка через Textract (Dev-OCR) & GPT (DMZ))")
+st.write("Загрузите один файл для распознавания (OCR (Tesseract async, Dev-OCR) & GPT (DMZ))")
 
 # --- Basic paths ---
 BASE_DIR = Path(__file__).resolve().parent

@@ -1,8 +1,8 @@
 # Centralized filenames and constants used across the pipeline
 
 # OCR outputs
-TEXTRACT_RAW = "textract_response_raw.json"
-TEXTRACT_PAGES = "textract_response_filtered.json"
+OCR_RAW = "ocr_response_raw.json"
+OCR_PAGES = "ocr_response_filtered.json"
 
 # GPT: doc type checker
 GPT_DOC_TYPE_RAW = "gpt_doc_type_check_raw.json"

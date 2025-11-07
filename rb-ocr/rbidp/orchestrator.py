@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 import time
 
-from rbidp.clients.textract_client import ask_textract
-from rbidp.processors.filter_textract_response import filter_textract_response
+from rbidp.clients.tesseract_async_client import ask_tesseract
+from rbidp.processors.filter_ocr_response import filter_ocr_response
 from rbidp.processors.agent_doc_type_checker import check_single_doc_type
 from rbidp.processors.agent_extractor import extract_doc_data
 from rbidp.processors.filter_gpt_generic_response import filter_gpt_generic_response
@@ -18,7 +18,7 @@ from rbidp.processors.merge_outputs import merge_extractor_and_doc_type
 from rbidp.processors.validator import validate_run
 from rbidp.core.errors import make_error
 from rbidp.core.config import (
-    TEXTRACT_PAGES,
+    OCR_PAGES,
     GPT_DOC_TYPE_RAW,
     GPT_DOC_TYPE_FILTERED,
     GPT_EXTRACTOR_RAW,
@@ -281,7 +281,7 @@ def run_pipeline(
 
     # OCR
     _t_ocr_start = time.perf_counter()
-    textract_result = ask_textract(str(saved_path), output_dir=str(ocr_dir), save_json=False)
+    textract_result = ask_tesseract(str(saved_path), output_dir=str(ocr_dir), save_json=False)
     if not textract_result.get("success"):
         errors.append(make_error("OCR_FAILED", details=str(textract_result.get("error"))) )
         final_path = meta_dir / "final_result.json"
@@ -311,7 +311,7 @@ def run_pipeline(
 
     # Filter OCR pages
     try:
-        filtered_pages_path = filter_textract_response(textract_result.get("raw_obj", {}), str(ocr_dir), filename=TEXTRACT_PAGES)
+        filtered_pages_path = filter_ocr_response(textract_result.get("raw_obj", {}), str(ocr_dir), filename=OCR_PAGES)
         artifacts["ocr_pages_filtered_path"] = str(filtered_pages_path)
         with open(filtered_pages_path, "r", encoding="utf-8") as f:
             pages_obj = json.load(f)

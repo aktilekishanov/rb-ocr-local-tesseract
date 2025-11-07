@@ -1,5 +1,4 @@
 from rbidp.clients.gpt_client import ask_gpt
-from rbidp.clients.textract_client import ask_textract
 from rapidfuzz import fuzz  
  
 def main():
