@@ -496,6 +496,9 @@ def run_pipeline(
                 raise ValueError("Key valid_until has invalid type")
 
         # Stamp presence (non-fatal) deferred until after successful single-doc and extraction
+        # Close out GPT timing BEFORE running stamp check to avoid overlapping with stamp time
+        t_gpt += (time.perf_counter() - _t_gpt_start)
+
         stamp_flag = None
         try:
             suffix = saved_path.suffix.lower()
@@ -512,8 +515,7 @@ def run_pipeline(
             _write_json(scr_path, {"stamp_present": bool(stamp_flag)})
             artifacts["stamp_check_response_path"] = str(scr_path)
 
-        # Close out GPT timing for doc-type + extraction segment so it excludes stamp time
-        t_gpt += (time.perf_counter() - _t_gpt_start)
+        # Restart GPT timing AFTER stamp check
         _t_gpt_start = time.perf_counter()
     except ValueError as ve:
         errors.append(make_error("EXTRACT_SCHEMA_INVALID", details=str(ve)))
